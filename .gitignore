@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 venv/
 .ipynb_checkpoints/
+PPT/
 .env
 .env.*
 !.env.example
