@@ -1,0 +1,7 @@
+# Upstream runtime validated with Python 3.10 on macOS x86_64.
+# NumPy 1.x is required for compatibility with this PyTorch build.
+torch==2.2.2
+numpy==1.26.4
+pygame==2.6.1
+matplotlib==3.10.9
+ipython==8.39.0

@@ -13,3 +13,5 @@ checkpoints/
 *.pt
 *.pth
 *.ckpt
+snake-ai-pytorch-main.zip
+snake-ai-pytorch-main/arial.ttf
