@@ -59,7 +59,7 @@ def main():
     import pygame
     import torch
     import game as game_module
-    from agent import Agent
+    from agent import Agent, greedy_action
     from video_recorder import TailVideoRecorder
 
     random.seed(args.seed)
@@ -116,11 +116,7 @@ def main():
                 game.reset()
             for step in range(1, args.max_steps + 1):
                 # 评估使用贪心策略，不调用带随机探索的 get_action，也不更新参数。
-                observation = torch.as_tensor(agent.get_state(game), dtype=torch.float)
-                with torch.inference_mode():
-                    action_index = agent.model(observation).argmax().item()
-                action = [0, 0, 0]
-                action[action_index] = 1
+                action = greedy_action(agent.model, agent.get_state(game))
                 _, done, score = game.play_step(action)
                 game._update_ui()
                 label = f'Saved model | Greedy | Game {episode} | Step {step} | Score {score}'

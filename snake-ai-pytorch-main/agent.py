@@ -11,9 +11,19 @@ BATCH_SIZE = 1000
 LR = 0.001
 TARGET_UPDATE_INTERVAL = 1000  # Optimizer steps; provisional project default.
 
+def one_hot_action(index):
+    return [int(move == index) for move in range(3)]
+
+
+def greedy_action(model, observation):
+    with torch.inference_mode():
+        values = model(torch.as_tensor(observation, dtype=torch.float))
+        return one_hot_action(values.argmax().item())
+
+
 class Agent:
 
-    def __init__(self):
+    def __init__(self, *, target_update_interval=None, use_target_network=True):
         self.n_games = 0
         self.epsilon = 0 # randomness
         # γ 是折扣因子，决定未来奖励在回报中的权重。
@@ -22,11 +32,15 @@ class Agent:
         self.memory = deque(maxlen=MAX_MEMORY) # popleft()
         # 用神经网络近似 Q 值：11 项观察输入，输出直行、右转、左转的价值。
         self.model = Linear_QNet(11, 256, 3)
-        self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma,
-                                target_update_interval=TARGET_UPDATE_INTERVAL)
+        self.trainer = QTrainer(
+            self.model, lr=LR, gamma=self.gamma, use_target_network=use_target_network,
+            target_update_interval=TARGET_UPDATE_INTERVAL if target_update_interval is None
+            else target_update_interval,
+        )
 
 
-    def get_state(self, game):
+    @staticmethod
+    def get_state(game):
         # 这里返回局部观察 o：危险 3 项、朝向 4 项、食物方位 4 项。
         # 观察缺少完整蛇身和步数，不能保证满足马尔可夫性。
         head = game.snake[0]
@@ -96,18 +110,10 @@ class Agent:
         # ε-greedy：随机探索，或利用当前估值选择最大 Q 值动作。
         # 此处 epsilon 是整数阈值：初始随机分支概率为 80/201，80 局后降为 0。
         self.epsilon = 80 - self.n_games
-        final_move = [0,0,0]
         if random.randint(0, 200) < self.epsilon:
-            move = random.randint(0, 2)
-            final_move[move] = 1
-        else:
-            # 贪心动作由在线网络选择，目标网络只参与训练目标计算。
-            state0 = torch.tensor(state, dtype=torch.float)
-            prediction = self.model(state0)
-            move = torch.argmax(prediction).item()
-            final_move[move] = 1
-
-        return final_move
+            return one_hot_action(random.randint(0, 2))
+        # 贪心动作由在线网络选择，目标网络只参与训练目标计算。
+        return greedy_action(self.model, state)
 
 
 def train():

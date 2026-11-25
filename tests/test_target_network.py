@@ -98,6 +98,23 @@ class TargetNetworkTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 self.make_trainer(interval=value)
 
+    def test_no_target_variant_bootstraps_from_online_without_gradients(self):
+        network = nn.Linear(2, 3)
+        with torch.no_grad():
+            network.weight.zero_()
+            network.bias.copy_(torch.tensor([8., 1., 0.]))
+        trainer = QTrainer(network, lr=0.01, gamma=0.9, target_update_interval=1,
+                           use_target_network=False)
+        capture = CaptureMSE()
+        trainer.criterion = capture
+        trainer.train_step([0., 0.], [0, 1, 0], 1., [0., 0.], False)
+        torch.testing.assert_close(capture.target, torch.tensor([[8., 8.2, 0.]]))
+        self.assertFalse(capture.target.requires_grad)
+        # The online maximum (index 0) must receive no gradient through the TD target.
+        torch.testing.assert_close(network.bias.grad, torch.tensor([0., -4.8, 0.]))
+        self.assertIsNone(trainer.target_model)
+        self.assertEqual(trainer.n_updates, 1)
+
     def test_run_checkpoint_is_isolated_from_shared_weights(self):
         trainer = self.make_trainer()
         with tempfile.TemporaryDirectory() as directory:
